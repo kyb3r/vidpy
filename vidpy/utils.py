@@ -10,6 +10,7 @@ from xml.etree.ElementTree import fromstring
 import uuid
 from PIL import Image
 from . import config
+import imagesize
 
 def get_bg_color(filename):
     '''
@@ -57,25 +58,29 @@ def get_melt_profile(resource):
     '''
     Retrieves a melt profile from any given resource.
 
-    Inlcudes, with, height, fps, duration
+    Inlcudes, width, height, fps, duration
     '''
 
-    xml = check_output([config.MELT_BINARY, resource, '-consumer', 'xml'])
-    xml = fromstring(xml)
-
-    profile = xml.find('profile')
-    producer = xml.find('producer')
+    total_frames = 0
+    fps = 0
+    duration = 0
 
     if resource.endswith('.png'):
-        width = int(producer.find('property[@name="meta.media.width"]').text)
-        height = int(producer.find('property[@name="meta.media.height"]').text)
+        width, height = imagesize.get(resource)
     else:
+        xml = check_output([config.MELT_BINARY, resource, '-consumer', 'xml'])
+        xml = fromstring(xml)
+
+        profile = xml.find('profile')
+        producer = xml.find('producer')
+
+
         width = int(profile.get('width'))
         height = int(profile.get('height'))
 
-    total_frames = int(producer.find('property[@name="length"]').text)
-    fps = float(profile.get('frame_rate_num'))/float(profile.get('frame_rate_den'))
-    duration = round(float(total_frames)/fps, 2)
+        total_frames = int(producer.find('property[@name="length"]').text)
+        fps = float(profile.get('frame_rate_num'))/float(profile.get('frame_rate_den'))
+        duration = round(float(total_frames)/fps, 2)
 
     profile = {
         'total_frames': total_frames,

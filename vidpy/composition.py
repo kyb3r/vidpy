@@ -26,9 +26,9 @@ class Composition(object):
         height (int): Height of output in pixels
     '''
 
-    def __init__(self, clips, bgcolor='#000000', singletrack=False, duration=None, fps=None, width=None, height=None):
+    def __init__(self, clips, background="#000000", singletrack=False, duration=None, fps=None, width=None, height=None):
         self.clips = clips
-        self.bg = bgcolor
+        self.bg = background
         self.singletrack = singletrack
         self.duration = timestamp(duration)
         self.fps = fps
@@ -156,7 +156,14 @@ class Composition(object):
 
 
         # add the the background track
-        args += ['-track', 'color:{}'.format(self.bg), 'out=0']
+        # args += ['-track', 'color:{}'.format(self.bg), 'out=0']
+
+        if isinstance(self.bg, str):
+            bg_args = ['color:{}'.format(self.bg)]
+        elif isinstance(self.bg, Clip):
+            bg_args = self.bg.args(False)
+
+        args += ['-track'] + bg_args + ['out=0']
 
         # add a track for all clips in singletrack
         if self.singletrack:

@@ -13,6 +13,8 @@ class Clip(object):
         **kwargs: Option parameters that will get sent to melt
     '''
 
+    temp_resources = []
+
     def __init__(self, resource=None, service=None, start=0, end=None, offset=0, **kwargs):
         self.resource = resource
         self.service = service
@@ -28,15 +30,21 @@ class Clip(object):
         self.__profile = None
         self.mask = None
         self.is_mask = False
-        self.width = self.original_width
-        self.height = self.original_height
         self.x = 0
         self.y = 0
 
         if self.resource.__class__.__name__ == 'Composition':
             self.resource = self.resource.save_xml()
-            self._temp_resource = True
+            self.temp_resources.append(self.resource)
 
+        if not self.resource.endswith('.mp3'):
+            self.width = self.original_width
+            self.height = self.original_height
+
+    @classmethod
+    def flush_temp_resources(cls):
+        for file in cls.temp_resources:
+            os.remove(file)
 
     def get_profile(self):
         '''Returns the melt generated profile for the clip'''
@@ -474,6 +482,9 @@ class Clip(object):
             right (int): Pixels to crop from the right
         '''
 
+        self.width -= (left + right)
+        self.height -= (top + bottom)
+
         self.fx('crop', {
             'top': top,
             'left': left,
@@ -483,7 +494,7 @@ class Clip(object):
         return self
 
 
-    def set_position(self, x=0, y=0, w=None, h=None, distort=True):
+    def set_position(self, x=0, y=0, w=None, h=None, distort=True, perform=True):
         '''Positions and resizes the clip. Coordinates can be either in pixels or percent.
 
         To maintain aspect ration, set distort=False
@@ -494,6 +505,7 @@ class Clip(object):
             w: optional width
             h: optional height
             distort (bool): Option to distort the image or maintain its ratio
+            perform (bool): Whether to actually resize the clip, useful for performing calculations if set to false.
         '''
 
         self.x = x
@@ -504,20 +516,26 @@ class Clip(object):
             self.width = w
             self.height = round(self.height * ratio)
             h = self.height
+        elif isinstance(h, int) and not w:
+            ratio = h/self.height 
+            self.height = h
+            self.width = round(self.width * ratio)
+            w = self.width
         
-        self.transition('affine', {
-            'rect': '{}/{}:{}x{}'.format(x, y, w, h),
-            'valign': 'top',
-            'halign': 'center',
-            'fill': 0,
-            'distort': 1 if distort else 0,
-            'fill': 1 if distort else 0
-        })
+        if perform:
+            self.transition('affine', {
+                'rect': '{}/{}:{}x{}'.format(x, y, w, h),
+                'valign': 'top',
+                'halign': 'center',
+                'fill': 0,
+                'distort': 1 if distort else 0,
+                'fill': 1 if distort else 0
+            })
 
         return self
 
 
-    def resize(self, w='100%', h='100%', distort=True):
+    def resize(self, w=None, h=None, distort=True, perform=True):
         '''Resizes the clip. Coordinates can be either in pixels or percent.
 
         To maintain aspect ration, set distort=False
@@ -526,15 +544,28 @@ class Clip(object):
             w: optional width
             h: optional height
             distort (bool): Option to distort the image or maintain its ratio
+            perform (bool): Whether to actually resize the clip, useful for performing calculations if set to false.
         '''
+        
+        if isinstance(w, int) and not h:
+            ratio = w/self.width 
+            self.width = w
+            self.height = round(self.height * ratio)
+            h = self.height
+        elif isinstance(h, int) and not w:
+            ratio = h/self.height 
+            self.height = h
+            self.width = round(self.width * ratio)
+            w = self.width
 
-        self.fx('affine', {
-            'transition.geometry': '{}/{}:{}x{}'.format(0, 0, w, h),
-            'transition.valign': 'middle',
-            'transition.halign': 'center',
-            'transition.fill': 0,
-            'transition.distort': 1 if distort else 0
-        })
+        if perform:
+            self.transition('affine', {
+                'rect': '{}/{}:{}x{}'.format(0, 0, w, h),
+                'valign': 'middle',
+                'halign': 'center',
+                'fill': 0,
+                'distort': 1 if distort else 0
+            })
 
         return self
 
@@ -918,7 +949,7 @@ class Clip(object):
 
         if self.offset > 0:
             args += ['-blank', str(self.offset)]
-
+        
         resource = self.resource
 
         if self._speed != 1.0:
