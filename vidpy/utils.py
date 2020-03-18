@@ -62,12 +62,21 @@ def get_melt_profile(resource):
 
     xml = check_output([config.MELT_BINARY, resource, '-consumer', 'xml'])
     xml = fromstring(xml)
+
     profile = xml.find('profile')
-    total_frames = int(xml.find('producer').find('property[@name="length"]').text)
+    producer = xml.find('producer')
+
+    if resource.endswith('.png'):
+        width = int(producer.find('property[@name="meta.media.width"]').text)
+        height = int(producer.find('property[@name="meta.media.height"]').text)
+    else:
+        width = int(profile.get('width'))
+        height = int(profile.get('height'))
+
+    total_frames = int(producer.find('property[@name="length"]').text)
     fps = float(profile.get('frame_rate_num'))/float(profile.get('frame_rate_den'))
-    width = int(profile.get('width'))
-    height =  int(profile.get('height'))
     duration = round(float(total_frames)/fps, 2)
+
     profile = {
         'total_frames': total_frames,
         'fps': fps,
@@ -75,6 +84,7 @@ def get_melt_profile(resource):
         'height': height,
         'duration': duration
     }
+    
     return profile
 
 

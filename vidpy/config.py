@@ -2,7 +2,7 @@ import os
 
 MELT_BINARY = ''
 
-MAC = '/Applications/Shotcut.app/Contents/MacOS/qmelt'
+MAC = '/Applications/Shotcut.app/Contents/MacOS/melt'
 WIN = 'C:\Program Files\Shotcut\qmelt.exe'
 
 if os.path.exists(MAC):

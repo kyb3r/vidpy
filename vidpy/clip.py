@@ -28,6 +28,10 @@ class Clip(object):
         self.__profile = None
         self.mask = None
         self.is_mask = False
+        self.width = self.original_width
+        self.height = self.original_height
+        self.x = 0
+        self.y = 0
 
         if self.resource.__class__.__name__ == 'Composition':
             self.resource = self.resource.save_xml()
@@ -69,13 +73,12 @@ class Clip(object):
 
 
     @property
-    def width(self):
+    def original_width(self):
         '''Width of the original clip'''
         return self.get_profile().get('width')
 
-
     @property
-    def height(self):
+    def original_height(self):
         '''Height of the original clip'''
         return self.get_profile().get('height')
 
@@ -480,7 +483,7 @@ class Clip(object):
         return self
 
 
-    def position(self, x=0, y=0, w='100%', h='100%', distort=True):
+    def set_position(self, x=0, y=0, w=None, h=None, distort=True):
         '''Positions and resizes the clip. Coordinates can be either in pixels or percent.
 
         To maintain aspect ration, set distort=False
@@ -493,14 +496,24 @@ class Clip(object):
             distort (bool): Option to distort the image or maintain its ratio
         '''
 
-        self.fx('affine', {
-            'transition.geometry': '{}/{}:{}x{}'.format(x, y, w, h),
-            'transition.valign': 'middle',
-            'transition.halign': 'center',
-            'transition.fill': 0,
-            'transition.distort': 1 if distort else 0,
-            'transition.fill': 1 if distort else 0
+        self.x = x
+        self.y = y
+        
+        if isinstance(w, int) and not h:
+            ratio = w/self.width 
+            self.width = w
+            self.height = round(self.height * ratio)
+            h = self.height
+        
+        self.transition('affine', {
+            'rect': '{}/{}:{}x{}'.format(x, y, w, h),
+            'valign': 'top',
+            'halign': 'center',
+            'fill': 0,
+            'distort': 1 if distort else 0,
+            'fill': 1 if distort else 0
         })
+
         return self
 
 
@@ -522,6 +535,7 @@ class Clip(object):
             'transition.fill': 0,
             'transition.distort': 1 if distort else 0
         })
+
         return self
 
 
